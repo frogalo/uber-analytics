@@ -3,16 +3,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from 'next/navigation';
-import { parseCSVData } from "@/lib/csv-parser"; // Reuse CSV parser
-import EatsDataTable from "@/components/ui/EatsDataTable";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+import { parseCSVData } from "@/lib/csv-parser";
+import EatsDataTable from "../../../components/ui/EatsDataTabe";
 
 interface EatsData {
     City_Name: string;
@@ -42,7 +34,7 @@ const EatsAnalyticsPage = () => {
     const [error, setError] = useState<string | null>(null);
     const params = useParams();
     const csvFileName = params.csv;
-    const [expandedRow, setExpandedRow] = useState<string | null>(null); // Track expanded row
+    const [displayDate, setDisplayDate] = useState("");
 
     useEffect(() => {
         async function loadEatsData() {
@@ -57,6 +49,12 @@ const EatsAnalyticsPage = () => {
                 const parsedData = await parseCSVData(csvString) as EatsData[];
                 setEatsData(parsedData);
 
+                // Format name based on local save function.
+                const dateMatch = csvFileName.match(/(\d{8}T\d{6})/)
+                const formattedDate = dateMatch ? new Date(dateMatch[1]).toLocaleString() : csvFileName
+
+                setDisplayDate(formattedDate);
+                setLoading(false);
                 // Group orders by Request_Time_Local
                 const grouped: { [key: string]: EatsData[] } = {};
                 parsedData.forEach((item) => {
@@ -92,74 +90,13 @@ const EatsAnalyticsPage = () => {
     if (loading) return <div>Loading Uber Eats data...</div>;
     if (error) return <div>Error: {error}</div>;
 
-    const toggleExpandedRow = (requestTime: string) => {
-        setExpandedRow(expandedRow === requestTime ? null : requestTime);
-    };
-
     return (
         <div className="container mx-auto p-4">
             <h2 className="text-lg font-semibold mb-2">File: {csvFileName}</h2>
+            {/* Display the data in a table */}
+            <EatsDataTable data={groupedOrders} />
 
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Request Time</TableHead>
-                        <TableHead>Restaurant</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Total Items</TableHead>
-                        <TableHead>Order Price</TableHead>
-                        <TableHead>Action</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {groupedOrders.map((order) => (
-                        <React.Fragment key={order.Request_Time_Local}>
-                            <TableRow >
-                                <TableCell>{order.Request_Time_Local}</TableCell>
-                                <TableCell>{order.items[0].Restaurant_Name}</TableCell>
-                                <TableCell>{order.items[0].Order_Status}</TableCell>
-                                <TableCell>{order.items.length}</TableCell>
-                                <TableCell>{order.items[0].Order_Price} zł</TableCell>
-                                <TableCell>
-                                    <button
-                                        onClick={() => toggleExpandedRow(order.Request_Time_Local)}
-                                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-xs"
-                                    >
-                                        {expandedRow === order.Request_Time_Local ? 'Hide Items' : 'Show Items'}
-                                    </button>
-                                </TableCell>
-                            </TableRow>
-                            {expandedRow === order.Request_Time_Local && (
-                                <TableRow>
-                                    <TableCell colSpan={7}>
-                                        {/* Nested table for items */}
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Item</TableHead>
-                                                    <TableHead>Quantity</TableHead>
-                                                    <TableHead>Customizations</TableHead>
-                                                    <TableHead>Item Price</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {order.items.map((item, itemIndex) => (
-                                                    <TableRow key={itemIndex}>
-                                                        <TableCell>{item.Item_Name}</TableCell>
-                                                        <TableCell>{item.Item_quantity}</TableCell>
-                                                        <TableCell>{item.Customizations}</TableCell>
-                                                        <TableCell>{item.Item_Price} zł</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </React.Fragment>
-                    ))}
-                </TableBody>
-            </Table>
+
         </div>
     );
 };

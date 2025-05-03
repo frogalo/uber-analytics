@@ -1,17 +1,14 @@
 // components/ui/EatsDataTable.tsx
 "use client";
 
+import React, { useState } from "react";
 import {
-    ColumnDef,
     flexRender,
     getCoreRowModel,
     useReactTable,
     SortingState,
     getSortedRowModel,
-
-    ColumnFiltersState, getFilteredRowModel,
 } from "@tanstack/react-table";
-import { useState } from "react";
 import {
     Table,
     TableBody,
@@ -20,8 +17,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-// import { format } from 'date-fns'; // Import date-fns for formatting
-// import { pl } from 'date-fns/locale';// Import locale to have Polish dates if needed
 
 interface EatsData {
     City_Name: string;
@@ -39,76 +34,82 @@ interface EatsData {
     Currency: string;
 }
 
+interface GroupedOrder {
+    Request_Time_Local: string;
+    items: EatsData[];
+}
+
 interface EatsDataTableProps {
-    data: EatsData[];
+    data: GroupedOrder[];
 }
 
 const EatsDataTable: React.FC<EatsDataTableProps> = ({ data }) => {
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-    const columns: ColumnDef<EatsData>[] = [
-        { accessorKey: "City_Name", header: "City" },
-        { accessorKey: "Restaurant_Name", header: "Restaurant" },
-        { accessorKey: "Request_Time_Local", header: "Request Time" },
-        { accessorKey: "Final_Delivery_Time_Local", header: "Delivery Time" },
-        { accessorKey: "Order_Status", header: "Status" },
-        { accessorKey: "Item_Name", header: "Item" },
-        { accessorKey: "Item_quantity", header: "Quantity" },
-        { accessorKey: "Customizations", header: "Customizations" },
-        { accessorKey: "Customization_Cost_Local", header: "Customization Cost" },
-        { accessorKey: "Special_Instructions", header: "Instructions" },
-        { accessorKey: "Item_Price", header: "Item Price" },
-        { accessorKey: "Order_Price", header: "Order Price" },
-        { accessorKey: "Currency", header: "Currency" },
-    ];
-
-    const table = useReactTable({
-        data,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        state: {
-            sorting,
-            columnFilters,
-        },
-    });
+    const toggleExpandedRow = (requestTime: string) => {
+        setExpandedRow(expandedRow === requestTime ? null : requestTime);
+    };
 
     return (
-        <div className="w-full">
-            <Table>
-                <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => (
-                                <TableHead key={header.id}>
-                                    {header.isPlaceholder
-                                        ? null
-                                        : flexRender(
-                                            header.column.columnDef.header,
-                                            header.getContext()
-                                        )}
-                                </TableHead>
-                            ))}
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Request Time</TableHead>
+                    <TableHead>Restaurant</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Total Items</TableHead>
+                    <TableHead>Order Price</TableHead>
+                    <TableHead>Action</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {data.map((order) => (
+                    <React.Fragment key={order.Request_Time_Local}>
+                        <TableRow>
+                            <TableCell>{order.Request_Time_Local}</TableCell>
+                            <TableCell>{order.items[0].Restaurant_Name}</TableCell>
+                            <TableCell>{order.items[0].Order_Status}</TableCell>
+                            <TableCell>{order.items.length}</TableCell>
+                            <TableCell>{order.items[0].Order_Price} {order.items[0].Currency}</TableCell>
+                            <TableCell>
+                                <button
+                                    onClick={() => toggleExpandedRow(order.Request_Time_Local)}
+                                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-xs"
+                                >
+                                    {expandedRow === order.Request_Time_Local ? "Hide Items" : "Show Items"}
+                                </button>
+                            </TableCell>
                         </TableRow>
-                    ))}
-                </TableHeader>
-                <TableBody>
-                    {table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                                <TableCell key={cell.id}>
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {expandedRow === order.Request_Time_Local && (
+                            <TableRow>
+                                <TableCell colSpan={6}>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Item</TableHead>
+                                                <TableHead>Quantity</TableHead>
+                                                <TableHead>Customizations</TableHead>
+                                                <TableHead>Item Price</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {order.items.map((item, itemIndex) => (
+                                                <TableRow key={itemIndex}>
+                                                    <TableCell>{item.Item_Name}</TableCell>
+                                                    <TableCell>{item.Item_quantity}</TableCell>
+                                                    <TableCell>{item.Customizations}</TableCell>
+                                                    <TableCell>{item.Item_Price} {item.Currency}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
                                 </TableCell>
-                            ))}
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
+                            </TableRow>
+                        )}
+                    </React.Fragment>
+                ))}
+            </TableBody>
+        </Table>
     );
 };
 
