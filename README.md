@@ -63,7 +63,7 @@ Once you've downloaded the ZIP file:
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/your-username/uber-data-analyzer.git
+git clone https://github.com/frogalo/uber-analytics.git
 cd uber-data-analyzer
 npm install
 ```
