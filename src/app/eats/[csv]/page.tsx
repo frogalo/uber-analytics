@@ -6,6 +6,16 @@ import { useParams } from 'next/navigation';
 import { parseCSVData } from "@/lib/csv-parser"; // Reuse CSV parser
 import EatsDataTable from "../../../components/ui/EatsDataTabe";
 import Circle from "@/components/ui/Circle";
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+} from "recharts";
 
 interface EatsData {
     City_Name: string;
@@ -38,7 +48,7 @@ const EatsAnalyticsPage = () => {
     const [totalOrders, setTotalOrders] = useState(0);
     const params = useParams();
     const csvFileName = params.csv;
-    const [displayDate, setDisplayDate] = useState("");
+    const [monthlyData, setMonthlyData] = useState<{ month: string; TotalSpent: number }[]>([]);
 
     useEffect(() => {
         async function loadEatsData() {
@@ -67,12 +77,33 @@ const EatsAnalyticsPage = () => {
                 });
                 setTotalItems(totalItems);
 
+                const monthlySummary: { [month: string]: { totalSpent: number } } = {};
+                parsedData.forEach((row: EatsData) => {
+                    if (!row.Request_Time_Local) return;
+                    const date = new Date(row.Request_Time_Local);
+                    const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (!monthlySummary[month]) {
+                        monthlySummary[month] = { totalSpent: 0 };
+                    }
+                    monthlySummary[month].totalSpent += Number(row.Item_Price || 0);
+                });
+
+                const chartData = Object.entries(monthlySummary)
+                    .map(([month, summary]) => ({
+                        month,
+                        TotalSpent: summary.totalSpent,
+                    }))
+                    .filter((entry) => entry.TotalSpent > 0) // <-- Only months with spending
+                    .sort((a, b) => a.month.localeCompare(b.month));
+
+                setMonthlyData(chartData);
+
                 // Format name based on local save function.
                 const dateMatch = csvFileName.match(/(\d{8}T\d{6})/);
                 const formattedDate = dateMatch
                     ? new Date(dateMatch[1]).toLocaleString()
                     : csvFileName;
-                setDisplayDate(formattedDate);
+
 
                 // Group orders by Request_Time_Local
                 const grouped: { [key: string]: EatsData[] } = {};
@@ -117,7 +148,6 @@ const EatsAnalyticsPage = () => {
 
     return (
         <div className="container mx-auto p-4">
-            <h2 className="text-lg font-semibold mb-2">File: {displayDate}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <Circle
                     title="Total Spent"
@@ -138,6 +168,31 @@ const EatsAnalyticsPage = () => {
                     unit= " "
                 />
 
+            </div>
+            <h2 className="text-lg font-semibold mb-2">File: {csvFileName}</h2>
+
+            {/* Monthly Spending Chart */}
+            <div className="mb-8">
+                <h2 className="text-lg font-semibold mb-2">Monthly Food Spending</h2>
+                <div className="bg-white rounded-lg shadow p-4">
+                    <ResponsiveContainer width="100%" height={350}>
+                        <BarChart data={monthlyData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" angle={-45} textAnchor="end" height={80} />
+                            <YAxis />
+                            <Tooltip
+                                formatter={(value, name) => {
+                                    if (name === "Total Spent" && typeof value === "number") {
+                                        return [`${value.toFixed(2)} zł`, "Total Spent"];
+                                    }
+                                    return value;
+                                }}
+                            />
+                            <Legend />
+                            <Bar dataKey="TotalSpent" fill="#8884d8" name="Total Spent" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
             </div>
 
             {/* Display the data in a table */}
