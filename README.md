@@ -86,3 +86,9 @@ Your Uber data contains more than just trip and food order history — it holds 
 
 Found a bug or have an idea? Feel free to open an issue or submit a PR!
 I’d love to make this tool even better with your help.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
