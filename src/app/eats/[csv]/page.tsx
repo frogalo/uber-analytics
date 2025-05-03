@@ -3,8 +3,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from 'next/navigation';
-import { parseCSVData } from "@/lib/csv-parser";
+import { parseCSVData } from "@/lib/csv-parser"; // Reuse CSV parser
 import EatsDataTable from "../../../components/ui/EatsDataTabe";
+import Circle from "@/components/ui/Circle";
 
 interface EatsData {
     City_Name: string;
@@ -32,6 +33,9 @@ const EatsAnalyticsPage = () => {
     const [groupedOrders, setGroupedOrders] = useState<GroupedOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [totalSpent, setTotalSpent] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalOrders, setTotalOrders] = useState(0);
     const params = useParams();
     const csvFileName = params.csv;
     const [displayDate, setDisplayDate] = useState("");
@@ -49,12 +53,27 @@ const EatsAnalyticsPage = () => {
                 const parsedData = await parseCSVData(csvString) as EatsData[];
                 setEatsData(parsedData);
 
-                // Format name based on local save function.
-                const dateMatch = csvFileName.match(/(\d{8}T\d{6})/)
-                const formattedDate = dateMatch ? new Date(dateMatch[1]).toLocaleString() : csvFileName
+                // Calculate total spent
+                let totalOrderSpent = 0;
+                parsedData.forEach((row: EatsData) => {
+                    totalOrderSpent += Number(row.Item_Price || 0);
+                });
+                setTotalSpent(totalOrderSpent);
 
+                // Calculate total items
+                let totalItems = 0;
+                parsedData.forEach((row: EatsData) => {
+                    totalItems += Number(row.Item_quantity || 0);
+                });
+                setTotalItems(totalItems);
+
+                // Format name based on local save function.
+                const dateMatch = csvFileName.match(/(\d{8}T\d{6})/);
+                const formattedDate = dateMatch
+                    ? new Date(dateMatch[1]).toLocaleString()
+                    : csvFileName;
                 setDisplayDate(formattedDate);
-                setLoading(false);
+
                 // Group orders by Request_Time_Local
                 const grouped: { [key: string]: EatsData[] } = {};
                 parsedData.forEach((item) => {
@@ -65,14 +84,20 @@ const EatsAnalyticsPage = () => {
                 });
 
                 // Convert grouped object to array of GroupedOrder objects
-                const groupedOrdersArray: GroupedOrder[] = Object.entries(grouped).map(([Request_Time_Local, items]) => ({
-                    Request_Time_Local,
-                    items,
-                }));
-
+                const groupedOrdersArray: GroupedOrder[] = Object.entries(grouped).map(
+                    ([Request_Time_Local, items]) => ({
+                        Request_Time_Local,
+                        items,
+                    })
+                );
                 setGroupedOrders(groupedOrdersArray);
+
+                // FIX: totalOrders should be the number of unique orders
+                const totalOrders = groupedOrdersArray.length;
+                setTotalOrders(totalOrders);
+
                 setLoading(false);
-            } catch (err:any) {
+            } catch (err: any) {
                 console.error("Error loading and parsing CSV:", err);
                 setError("Failed to load and parse CSV data.");
                 setLoading(false);
@@ -92,9 +117,31 @@ const EatsAnalyticsPage = () => {
 
     return (
         <div className="container mx-auto p-4">
-            <h2 className="text-lg font-semibold mb-2">File: {csvFileName}</h2>
+            <h2 className="text-lg font-semibold mb-2">File: {displayDate}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <Circle
+                    title="Total Spent"
+                    value={totalSpent.toFixed(2)}
+                    description="All Time"
+                    unit=" zł"
+                />
+                <Circle
+                    title="Total Orders"
+                    value={totalOrders}
+                    description="All Time (orders)"
+                    unit= " "
+                />
+                <Circle
+                    title="Total Items"
+                    value={totalItems}
+                    description="All Time (items)"
+                    unit= " "
+                />
+
+            </div>
+
             {/* Display the data in a table */}
-            <EatsDataTable data={groupedOrders} />
+            <EatsDataTable data = {groupedOrders}/>
 
 
         </div>
